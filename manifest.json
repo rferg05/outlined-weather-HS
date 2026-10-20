@@ -1,7 +1,7 @@
 {
   "id": "outlined-weather",
   "name": "Outlined Weather",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Weather with an outline around the text and icons, so it stays readable over photos and busy backgrounds.",
   "author": "Ryan",
   "license": "MIT",
@@ -23,6 +23,7 @@
     "showHighLow": true,
     "showFeelsLike": true,
     "showPrecip": true,
+    "hideZeroRain": false,
     "showHumidity": true,
     "showWind": true
   },
@@ -44,12 +45,14 @@
         "enum": [
           "current",
           "hourly",
+          "hourlyPlus",
           "daily",
           "combined"
         ],
         "enumLabels": [
           "Current",
           "Hourly",
+          "Hourly +1",
           "Daily",
           "Current + hourly + daily"
         ],
@@ -78,7 +81,7 @@
         "ui:widget": "slider",
         "ui:step": 1,
         "ui:group": "Layout",
-        "description": "Used by the Hourly and Current + hourly + daily views."
+        "description": "Used by the Hourly, Hourly +1 and Current + hourly + daily views."
       },
       "dayCount": {
         "type": "number",
@@ -92,7 +95,7 @@
       "showTodayPanel": {
         "type": "boolean",
         "title": "Show today panel",
-        "description": "Hourly and Daily views: current conditions (Hourly) or today's forecast (Daily) on the left.",
+        "description": "Hourly, Hourly +1 and Daily views: current conditions (Hourly) or today's forecast (Daily) on the left.",
         "ui:widget": "toggle",
         "ui:group": "Layout"
       },
@@ -117,6 +120,13 @@
       "showPrecip": {
         "type": "boolean",
         "title": "Show chance of rain",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "hideZeroRain": {
+        "type": "boolean",
+        "title": "Hide rain when 0%",
+        "description": "Hourly +1: leave the chance of rain off tomorrow's row when it is 0%.",
         "ui:widget": "toggle",
         "ui:group": "Layout"
       },

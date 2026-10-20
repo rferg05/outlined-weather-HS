@@ -155,6 +155,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const showHumidity = config.showHumidity !== false;
   const showWind = config.showWind !== false;
   const showTodayPanel = config.showTodayPanel !== false;
+  const hideZeroRain = config.hideZeroRain === true;
 
   const hourly = (Array.isArray(props.hourly) ? props.hourly : []) as HourlyWeather[];
   const forecast = (Array.isArray(props.forecast) ? props.forecast : []) as ForecastDay[];
@@ -165,7 +166,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const desiredFont = Math.max(1, num(style.fontSize, BASE_FONT));
   const { boxRef, fontSize } = useFitFontSize(desiredFont, [
     view, hourCount, dayCount, hourly.length, forecast.length, hourly[0]?.time, forecast[0]?.date,
-    colorIcons, showDescription, showHighLow, showFeelsLike, showPrecip, showHumidity, showWind, showTodayPanel,
+    colorIcons, showDescription, showHighLow, showFeelsLike, showPrecip, showHumidity, showWind, showTodayPanel, hideZeroRain,
     p.locationMissing, p.weatherError ? 1 : 0, style.fontFamily, style.padding,
   ].join('|'));
 
@@ -334,10 +335,40 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     )),
   );
 
+  const hourlyView = hourlyFrom ? withPanel(hourlyPanel, hourlyBlock) : hourlyBlock;
+
+  /** "Hourly +1": tomorrow's forecast as one line under the hourly view. */
+  const tomorrow = forecast[1];
+  const tomorrowRow = tomorrow ? (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6em', width: '100%' }}>
+      <span style={{ opacity: SECONDARY, whiteSpace: 'nowrap' }}>{dayLabel(tomorrow.date, 1, true)}</span>
+      <Icon id={tomorrow.icon} size="1.4em" />
+      {showHighLow && (
+        <span style={{ display: 'flex', gap: '0.25em', whiteSpace: 'nowrap' }}>
+          <span style={{ fontWeight: 500 }}>{deg(tomorrow.high)}</span>
+          <span style={{ opacity: DIM }}>{deg(tomorrow.low)}</span>
+        </span>
+      )}
+      <Stat
+        icon={CloudRain} value={tomorrow.precipProbability} unit="%" size="0.85em"
+        show={showPrecip && !(hideZeroRain && Math.round(tomorrow.precipProbability ?? 0) === 0)}
+      />
+      <Stat icon={Droplets} value={tomorrow.humidity} unit="%" show={showHumidity} size="0.85em" />
+      <Stat icon={Wind} value={tomorrow.windSpeed} unit={` ${windUnit}`} show={showWind} size="0.85em" />
+    </div>
+  ) : null;
+
   return (
     <div ref={boxRef} style={root}>
       {view === 'current' && currentBlock}
-      {view === 'hourly' && (hourlyFrom ? withPanel(hourlyPanel, hourlyBlock) : hourlyBlock)}
+      {view === 'hourly' && hourlyView}
+      {view === 'hourlyPlus' && (
+        <>
+          {hourlyView}
+          {tomorrowRow && <div style={{ width: '100%', height: 1, flexShrink: 0, background: 'currentColor', opacity: 0.2 }} />}
+          {tomorrowRow}
+        </>
+      )}
       {view === 'daily' && forecast.length > 0 && (dailyFrom ? withPanel(dailyPanel, dailyBlock) : dailyBlock)}
     </div>
   );
