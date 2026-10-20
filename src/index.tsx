@@ -154,6 +154,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const colorIcons = config.iconStyle !== 'line';
   const showHumidity = config.showHumidity !== false;
   const showWind = config.showWind !== false;
+  const showTodayPanel = config.showTodayPanel !== false;
 
   const hourly = (Array.isArray(props.hourly) ? props.hourly : []) as HourlyWeather[];
   const forecast = (Array.isArray(props.forecast) ? props.forecast : []) as ForecastDay[];
@@ -164,7 +165,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const desiredFont = Math.max(1, num(style.fontSize, BASE_FONT));
   const { boxRef, fontSize } = useFitFontSize(desiredFont, [
     view, hourCount, dayCount, hourly.length, forecast.length, hourly[0]?.time, forecast[0]?.date,
-    colorIcons, showDescription, showHighLow, showFeelsLike, showPrecip, showHumidity, showWind,
+    colorIcons, showDescription, showHighLow, showFeelsLike, showPrecip, showHumidity, showWind, showTodayPanel,
     p.locationMissing, p.weatherError ? 1 : 0, style.fontFamily, style.padding,
   ].join('|'));
 
@@ -257,13 +258,60 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   ) : null;
 
   const columns = (items: React.ReactNode[]) => (
-    <div style={{ display: 'flex', width: '100%', justifyContent: 'space-around', gap: '0.4em' }}>
+    <div style={{ display: 'flex', width: '100%', minWidth: 0, justifyContent: 'space-around', gap: '0.4em' }}>
       {items}
     </div>
   );
 
+  /** The hourly and daily views lead with today on the left and a divider,
+   *  like the host's own: current conditions for hourly, today's forecast for
+   *  daily (mirrors the host's WeatherHourlyView / WeatherDailyView). */
+  const withPanel = (panel: React.ReactNode, row: React.ReactNode) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8em', width: '100%' }}>
+      {panel}
+      <div style={{ alignSelf: 'stretch', width: 1, flexShrink: 0, background: 'currentColor', opacity: 0.3 }} />
+      {row}
+    </div>
+  );
+
+  const hourlyPanel = current ? (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25em' }}>
+        <span style={{ fontSize: '3em', fontWeight: 300, lineHeight: 1 }}>{deg(current.temp)}</span>
+        <Icon id={current.icon} size="2.5em" />
+      </div>
+      {showHighLow && today && (
+        <span style={{ fontSize: '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>H:{deg(today.high)} L:{deg(today.low)}</span>
+      )}
+      {showFeelsLike && current.feelsLike != null && (
+        <span style={{ fontSize: '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>Feels like {deg(current.feelsLike)}</span>
+      )}
+      <Stat icon={Droplets} value={current.humidity} unit="%" show={showHumidity} size="0.85em" />
+      <Stat icon={Wind} value={current.windSpeed} show={showWind} size="0.85em" />
+    </div>
+  ) : null;
+
+  const dailyPanel = today ? (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em', flexShrink: 0 }}>
+      <span style={{ fontSize: '0.85em', fontWeight: 500, opacity: SECONDARY }}>{dayLabel(today.date, 0)}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2em' }}>
+        <Icon id={today.icon} size="2.5em" />
+        {showHighLow && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '2em', fontWeight: 300, lineHeight: 1.1 }}>{deg(today.high)}</span>
+            <span style={{ fontSize: '1.2em', opacity: DIM, lineHeight: 1.1 }}>{deg(today.low)}</span>
+          </div>
+        )}
+      </div>
+      <Stat icon={CloudRain} value={today.precipProbability} unit="%" show={showPrecip} size="0.85em" />
+      <Stat icon={Droplets} value={today.humidity} unit="%" show={showHumidity} size="0.85em" />
+      <Stat icon={Wind} value={today.windSpeed} unit={` ${windUnit}`} show={showWind} size="0.85em" />
+    </div>
+  ) : null;
+
+  const hourlyFrom = showTodayPanel && hourlyPanel ? 1 : 0;
   const hourlyBlock = columns(
-    hourly.slice(0, hourCount).map((h) => (
+    hourly.slice(hourlyFrom, hourlyFrom + hourCount).map((h) => (
       <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
         <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
         <Icon id={h.icon} size="1.6em" />
@@ -273,10 +321,11 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     )),
   );
 
+  const dailyFrom = showTodayPanel && dailyPanel ? 1 : 0;
   const dailyBlock = columns(
-    forecast.slice(0, dayCount).map((d, i) => (
+    forecast.slice(dailyFrom, dayCount).map((d, i) => (
       <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
-        <span style={{ fontSize: '0.8em' }}>{dayLabel(d.date, i)}</span>
+        <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{dayLabel(d.date, i + dailyFrom)}</span>
         <Icon id={d.icon} size="1.6em" />
         <span style={{ fontWeight: 600 }}>{deg(d.high)}</span>
         <span style={{ fontSize: '0.8em' }}>{deg(d.low)}</span>
@@ -288,8 +337,8 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   return (
     <div ref={boxRef} style={root}>
       {view === 'current' && currentBlock}
-      {view === 'hourly' && hourlyBlock}
-      {view === 'daily' && forecast.length > 0 && dailyBlock}
+      {view === 'hourly' && (hourlyFrom ? withPanel(hourlyPanel, hourlyBlock) : hourlyBlock)}
+      {view === 'daily' && forecast.length > 0 && (dailyFrom ? withPanel(dailyPanel, dailyBlock) : dailyBlock)}
     </div>
   );
 
@@ -329,7 +378,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         {hours.length > 0 && (
           <div data-fit style={{ flex: '0 0 25%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {rule}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0.45em 0' }}>
               {hours.map((h) => (
                 <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em' }}>
                   <span style={{ fontSize: '0.65em', opacity: DIM, whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
