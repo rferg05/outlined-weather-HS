@@ -9,15 +9,17 @@ const TOLERANCE = 0.02;
 /** Hard cap on measure/correct rounds per content change. */
 const MAX_STEPS = 8;
 
-/** True when neither the box nor any `[data-fit]` region inside it overflows.
- *  The regions matter in the combined view: its bands have fixed heights, so a
- *  band whose rows spill over overlaps the next one without ever pushing the
- *  box itself past its bottom edge. */
+/** How far the box, or any `[data-fit]` region inside it, overflows: 1 when
+ *  nothing does, else the worst client/scroll ratio. The regions matter in the
+ *  combined view: its bands have fixed heights, so a band whose rows spill over
+ *  overlaps the next one without ever pushing the box itself past its bottom
+ *  edge. `data-fit="x"` checks width only, for rows sized to their own content
+ *  (their height can read a rounding pixel over without anything overflowing). */
 function overflowRatio(box: HTMLElement): number {
   let ratio = 1;
   const els = [box, ...Array.from(box.querySelectorAll<HTMLElement>('[data-fit]'))];
   for (const el of els) {
-    const h = el.clientHeight;
+    const h = el.dataset.fit === 'x' ? 0 : el.clientHeight;
     const w = el.clientWidth;
     if (h && el.scrollHeight > h + 0.5) ratio = Math.min(ratio, h / el.scrollHeight);
     if (w && el.scrollWidth > w + 0.5) ratio = Math.min(ratio, w / el.scrollWidth);

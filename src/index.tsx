@@ -3,8 +3,9 @@ import type { CSSProperties } from 'react';
 import {
   Sun, Moon, Cloud, CloudSun, CloudMoon, CloudRain, CloudDrizzle,
   CloudSnow, CloudLightning, CloudFog, Snowflake, Thermometer, CloudHail,
-  Droplets, Wind,
+  Droplets, Wind, Sunrise, Sunset,
 } from 'lucide-react';
+import SunCalc from 'suncalc';
 import type { PluginComponentProps } from './hs-plugin';
 import { hostFrameStyle } from './host-style';
 import { colorIconComponents } from './color-icons';
@@ -82,6 +83,20 @@ function hourLabel(iso: string, timezone?: string, timeFormat?: string): string 
     }).format(d);
   } catch {
     return d.toLocaleTimeString(undefined, { hour: 'numeric' });
+  }
+}
+
+function clockLabel(d: Date, timezone?: string, timeFormat?: string): string {
+  if (Number.isNaN(d.getTime())) return '–';
+  const opts: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: timeFormat ? timeFormat !== '24h' : undefined,
+  };
+  try {
+    return new Intl.DateTimeFormat(undefined, { ...opts, timeZone: timezone }).format(d);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, opts).format(d);
   }
 }
 
@@ -258,8 +273,10 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     </div>
   ) : null;
 
+  // Measured on its own (data-fit): a row squeezed by the today panel spills
+  // into the module's padding, which the box's own overflow doesn't count.
   const columns = (items: React.ReactNode[]) => (
-    <div style={{ display: 'flex', width: '100%', minWidth: 0, justifyContent: 'space-around', gap: '0.4em' }}>
+    <div data-fit="x" style={{ display: 'flex', width: '100%', minWidth: 0, justifyContent: 'space-around', gap: '0.4em' }}>
       {items}
     </div>
   );
@@ -311,16 +328,18 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   ) : null;
 
   const hourlyFrom = showTodayPanel && hourlyPanel ? 1 : 0;
-  const hourlyBlock = columns(
+  /** `large` is Hourly +1, where the hours get the room the Tmrw row gave up. */
+  const hourColumns = (large: boolean) => columns(
     hourly.slice(hourlyFrom, hourlyFrom + hourCount).map((h) => (
       <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
-        <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
-        <Icon id={h.icon} size="1.6em" />
-        <span style={{ fontWeight: 600 }}>{deg(h.temp)}</span>
+        <span style={{ fontSize: large ? '1em' : '0.8em', whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
+        <Icon id={h.icon} size={large ? '2.2em' : '1.6em'} />
+        <span style={{ fontWeight: 600, fontSize: large ? '1.3em' : undefined }}>{deg(h.temp)}</span>
         <Precip value={h.precipProbability} />
       </div>
     )),
   );
+  const hourlyBlock = hourColumns(false);
 
   const dailyFrom = showTodayPanel && dailyPanel ? 1 : 0;
   const dailyBlock = columns(
@@ -337,18 +356,22 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   const hourlyView = hourlyFrom ? withPanel(hourlyPanel, hourlyBlock) : hourlyBlock;
 
-  /** "Hourly +1": tomorrow's forecast as one line under the hourly view. */
+  /** "Hourly +1": the hourly view with tomorrow's forecast tucked under the
+   *  today panel (wrapping as needed) and today's sunrise and sunset above the
+   *  hours, so the hour columns keep most of the box. */
   const tomorrow = forecast[1];
-  const tomorrowRow = tomorrow ? (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6em', width: '100%' }}>
-      <span style={{ opacity: SECONDARY, whiteSpace: 'nowrap' }}>{dayLabel(tomorrow.date, 1, true)}</span>
-      <Icon id={tomorrow.icon} size="1.4em" />
-      {showHighLow && (
-        <span style={{ display: 'flex', gap: '0.25em', whiteSpace: 'nowrap' }}>
-          <span style={{ fontWeight: 500 }}>{deg(tomorrow.high)}</span>
-          <span style={{ opacity: DIM }}>{deg(tomorrow.low)}</span>
-        </span>
-      )}
+  const tomorrowBlock = tomorrow ? (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: '0.5em', rowGap: '0.1em' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35em', whiteSpace: 'nowrap' }}>
+        <span style={{ opacity: SECONDARY }}>{dayLabel(tomorrow.date, 1, true)}</span>
+        <Icon id={tomorrow.icon} size="1.4em" />
+        {showHighLow && (
+          <>
+            <span style={{ fontWeight: 500 }}>{deg(tomorrow.high)}</span>
+            <span style={{ opacity: DIM }}>{deg(tomorrow.low)}</span>
+          </>
+        )}
+      </span>
       <Stat
         icon={CloudRain} value={tomorrow.precipProbability} unit="%" size="0.85em"
         show={showPrecip && !(hideZeroRain && Math.round(tomorrow.precipProbability ?? 0) === 0)}
@@ -358,17 +381,51 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     </div>
   ) : null;
 
+  const sun = typeof props.latitude === 'number' && typeof props.longitude === 'number'
+    ? SunCalc.getTimes(new Date(), props.latitude, props.longitude)
+    : null;
+  const sunTime = (SunIcon: IconComponent, d: Date) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em', whiteSpace: 'nowrap', opacity: SECONDARY }}>
+      <SunIcon size="1.3em" strokeWidth={1.75} style={{ filter: iconFilter, overflow: 'visible', color: colorIcons ? '#fbbf24' : undefined }} aria-hidden="true" />
+      {clockLabel(d, props.timezone, p.timeFormat)}
+    </span>
+  );
+  const sunRow = sun ? (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1em', fontSize: '0.8em' }}>
+      {sunTime(Sunrise, sun.sunrise)}
+      {sunTime(Sunset, sun.sunset)}
+    </div>
+  ) : null;
+
+  const rule = <div style={{ width: '100%', height: 1, flexShrink: 0, background: 'currentColor', opacity: 0.2 }} />;
+  const hourlyPlusView = (
+    <div style={{ display: 'flex', alignSelf: 'stretch', flex: 1, minHeight: 0, gap: '0.8em' }}>
+      {(hourlyFrom || tomorrowBlock) && (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em', width: 'min-content', flexShrink: 0 }}>
+            {hourlyFrom ? hourlyPanel : <span />}
+            {tomorrowBlock && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4em', alignSelf: 'stretch' }}>
+                {hourlyFrom ? rule : null}
+                {tomorrowBlock}
+              </div>
+            )}
+          </div>
+          <div style={{ alignSelf: 'stretch', width: 1, flexShrink: 0, background: 'currentColor', opacity: 0.3 }} />
+        </>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: '0.4em' }}>
+        {sunRow}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>{hourColumns(true)}</div>
+      </div>
+    </div>
+  );
+
   return (
     <div ref={boxRef} style={root}>
       {view === 'current' && currentBlock}
       {view === 'hourly' && hourlyView}
-      {view === 'hourlyPlus' && (
-        <>
-          {hourlyView}
-          {tomorrowRow && <div style={{ width: '100%', height: 1, flexShrink: 0, background: 'currentColor', opacity: 0.2 }} />}
-          {tomorrowRow}
-        </>
-      )}
+      {view === 'hourlyPlus' && hourlyPlusView}
       {view === 'daily' && forecast.length > 0 && (dailyFrom ? withPanel(dailyPanel, dailyBlock) : dailyBlock)}
     </div>
   );

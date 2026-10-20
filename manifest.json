@@ -126,7 +126,7 @@
       "hideZeroRain": {
         "type": "boolean",
         "title": "Hide rain when 0%",
-        "description": "Hourly +1: leave the chance of rain off tomorrow's row when it is 0%.",
+        "description": "Hourly +1: leave the chance of rain off tomorrow's forecast when it is 0%.",
         "ui:widget": "toggle",
         "ui:group": "Layout"
       },
