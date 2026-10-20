@@ -1,7 +1,7 @@
 {
   "id": "outlined-weather",
   "name": "Outlined Weather",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Weather with an outline around the text and icons, so it stays readable over photos and busy backgrounds.",
   "author": "Ryan",
   "license": "MIT",

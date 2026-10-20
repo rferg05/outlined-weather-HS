@@ -292,14 +292,15 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     </div>
   );
 
-  const hourlyPanel = current ? (
+  /** `large` is Hourly +1, where today's high / low line reads a bit bigger. */
+  const todayPanel = (large: boolean) => current ? (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25em' }}>
         <span style={{ fontSize: '3em', fontWeight: 300, lineHeight: 1 }}>{deg(current.temp)}</span>
         <Icon id={current.icon} size="2.5em" />
       </div>
       {showHighLow && today && (
-        <span style={{ fontSize: '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>H:{deg(today.high)} L:{deg(today.low)}</span>
+        <span style={{ fontSize: large ? '1em' : '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>H:{deg(today.high)} L:{deg(today.low)}</span>
       )}
       {showFeelsLike && current.feelsLike != null && (
         <span style={{ fontSize: '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>Feels like {deg(current.feelsLike)}</span>
@@ -308,6 +309,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
       <Stat icon={Wind} value={current.windSpeed} show={showWind} size="0.85em" />
     </div>
   ) : null;
+  const hourlyPanel = todayPanel(false);
 
   const dailyPanel = today ? (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em', flexShrink: 0 }}>
@@ -402,8 +404,11 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     <div style={{ display: 'flex', alignSelf: 'stretch', flex: 1, minHeight: 0, gap: '0.8em' }}>
       {(hourlyFrom || tomorrowBlock) && (
         <>
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', gap: '0.5em', width: 'min-content', flexShrink: 0 }}>
-            {hourlyFrom ? hourlyPanel : <span />}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5em', width: 'min-content', flexShrink: 0 }}>
+            {/* Today sits centred in the space above the Tmrw block. */}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+              {hourlyFrom ? todayPanel(true) : null}
+            </div>
             {tomorrowBlock && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4em', alignSelf: 'stretch' }}>
                 {hourlyFrom ? rule : null}
