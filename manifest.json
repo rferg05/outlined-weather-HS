@@ -1,0 +1,166 @@
+{
+  "id": "outlined-weather",
+  "name": "Outlined Weather",
+  "version": "1.1.0",
+  "description": "Weather with an outline around the text and icons, so it stays readable over photos and busy backgrounds.",
+  "author": "Ryan",
+  "license": "MIT",
+  "minAppVersion": "1.7.1",
+  "moduleType": "outlined-weather",
+  "category": "Weather & Environment",
+  "icon": "CloudSun",
+  "defaultConfig": {
+    "view": "combined",
+    "iconStyle": "color",
+    "outlineColor": "#000000",
+    "outlineWidth": 3,
+    "outlineIcons": true,
+    "softShadow": true,
+    "hourCount": 9,
+    "dayCount": 5,
+    "showDescription": true,
+    "showHighLow": true,
+    "showFeelsLike": true,
+    "showPrecip": true,
+    "showHumidity": true,
+    "showWind": true
+  },
+  "defaultSize": {
+    "w": 520,
+    "h": 420
+  },
+  "defaultStyle": {
+    "fontSize": 24,
+    "padding": 16,
+    "backgroundColor": "rgba(0, 0, 0, 0)"
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "view": {
+        "type": "string",
+        "title": "View",
+        "enum": [
+          "current",
+          "hourly",
+          "daily",
+          "combined"
+        ],
+        "enumLabels": [
+          "Current",
+          "Hourly",
+          "Daily",
+          "Current + hourly + daily"
+        ],
+        "ui:widget": "select",
+        "ui:group": "Layout"
+      },
+      "iconStyle": {
+        "type": "string",
+        "title": "Icon style",
+        "enum": [
+          "color",
+          "line"
+        ],
+        "enumLabels": [
+          "Color",
+          "Line"
+        ],
+        "ui:widget": "select",
+        "ui:group": "Layout"
+      },
+      "hourCount": {
+        "type": "number",
+        "title": "Hours to show",
+        "minimum": 3,
+        "maximum": 12,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Layout",
+        "description": "Used by the Hourly and Current + hourly + daily views."
+      },
+      "dayCount": {
+        "type": "number",
+        "title": "Days to show",
+        "minimum": 3,
+        "maximum": 7,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Layout"
+      },
+      "showDescription": {
+        "type": "boolean",
+        "title": "Show condition text",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "showHighLow": {
+        "type": "boolean",
+        "title": "Show today's high / low",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "showFeelsLike": {
+        "type": "boolean",
+        "title": "Show feels like",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "showPrecip": {
+        "type": "boolean",
+        "title": "Show chance of rain",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "showHumidity": {
+        "type": "boolean",
+        "title": "Show humidity",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "showWind": {
+        "type": "boolean",
+        "title": "Show wind",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
+      "outlineColor": {
+        "type": "string",
+        "title": "Outline color",
+        "ui:widget": "color",
+        "ui:group": "Outline"
+      },
+      "outlineWidth": {
+        "type": "number",
+        "title": "Outline thickness",
+        "description": "0 turns the outline off.",
+        "minimum": 0,
+        "maximum": 8,
+        "ui:widget": "slider",
+        "ui:step": 0.5,
+        "ui:group": "Outline"
+      },
+      "outlineIcons": {
+        "type": "boolean",
+        "title": "Outline the icons too",
+        "ui:widget": "toggle",
+        "ui:group": "Outline"
+      },
+      "softShadow": {
+        "type": "boolean",
+        "title": "Add a soft shadow behind the outline",
+        "ui:widget": "toggle",
+        "ui:group": "Outline"
+      }
+    }
+  },
+  "exports": {
+    "component": "default"
+  },
+  "dataRequirements": [
+    "weather",
+    "location"
+  ],
+  "prefetchUrl": null,
+  "permissions": []
+}
