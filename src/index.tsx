@@ -3,9 +3,8 @@ import type { CSSProperties } from 'react';
 import {
   Sun, Moon, Cloud, CloudSun, CloudMoon, CloudRain, CloudDrizzle,
   CloudSnow, CloudLightning, CloudFog, Snowflake, Thermometer, CloudHail,
-  Droplets, Wind, Sunrise, Sunset,
+  Droplets, Wind,
 } from 'lucide-react';
-import SunCalc from 'suncalc';
 import type { PluginComponentProps } from './hs-plugin';
 import { hostFrameStyle } from './host-style';
 import { colorIconComponents } from './color-icons';
@@ -93,20 +92,6 @@ function hourLabel(iso: string, timezone?: string, timeFormat?: string): string 
     }).format(d);
   } catch {
     return d.toLocaleTimeString(undefined, { hour: 'numeric' });
-  }
-}
-
-function clockLabel(d: Date, timezone?: string, timeFormat?: string): string {
-  if (Number.isNaN(d.getTime())) return '–';
-  const opts: Intl.DateTimeFormatOptions = {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: timeFormat ? timeFormat !== '24h' : undefined,
-  };
-  try {
-    return new Intl.DateTimeFormat(undefined, { ...opts, timeZone: timezone }).format(d);
-  } catch {
-    return new Intl.DateTimeFormat(undefined, opts).format(d);
   }
 }
 
@@ -403,6 +388,8 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         data-fit="x"
         style={{
           display: 'grid', width: '100%', minWidth: 0, justifyItems: 'center', alignItems: 'start',
+          // Spread the rows (and the rules between them) over the full height.
+          alignContent: 'space-evenly',
           gridTemplateColumns: `repeat(${Math.max(1, Math.min(hours.length, HOURS_PER_ROW))}, minmax(min-content, 1fr))`,
           columnGap: '0.4em', rowGap: '0.6em',
         }}
@@ -432,8 +419,8 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const hourlyView = hourlyFrom ? withPanel(hourlyPanel, hourlyBlock) : hourlyBlock;
 
   /** "Hourly +1": the hourly view with tomorrow's forecast tucked under the
-   *  today panel (wrapping as needed) and today's sunrise and sunset above the
-   *  hours, so the hour columns keep most of the box. */
+   *  today panel (wrapping as needed), so the hour columns keep the rest of
+   *  the box. */
   const tomorrow = forecast[1];
   const tomorrowBlock = tomorrow ? (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: '0.5em', rowGap: '0.1em' }}>
@@ -453,22 +440,6 @@ export default function OutlinedWeather(props: PluginComponentProps) {
       />
       <Stat icon={Droplets} value={tomorrow.humidity} unit="%" show={showHumidity} size="0.85em" />
       <Stat icon={Wind} value={tomorrow.windSpeed} unit={` ${windUnit}`} show={showWind} size="0.85em" />
-    </div>
-  ) : null;
-
-  const sun = typeof props.latitude === 'number' && typeof props.longitude === 'number'
-    ? SunCalc.getTimes(new Date(), props.latitude, props.longitude)
-    : null;
-  const sunTime = (SunIcon: IconComponent, d: Date) => (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3em', whiteSpace: 'nowrap', opacity: SECONDARY }}>
-      <SunIcon size="1.3em" strokeWidth={1.75} style={{ filter: iconFilter, overflow: 'visible', color: colorIcons ? '#fbbf24' : undefined }} aria-hidden="true" />
-      {clockLabel(d, props.timezone, p.timeFormat)}
-    </span>
-  );
-  const sunRow = sun ? (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1em', fontSize: '0.8em' }}>
-      {sunTime(Sunrise, sun.sunrise)}
-      {sunTime(Sunset, sun.sunset)}
     </div>
   ) : null;
 
@@ -492,10 +463,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
           <div style={{ alignSelf: 'stretch', width: 1, flexShrink: 0, background: 'currentColor', opacity: 0.3 }} />
         </>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, gap: '0.4em' }}>
-        {sunRow}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>{hourColumns(true)}</div>
-      </div>
+      <div style={{ display: 'flex', flex: 1, minWidth: 0 }}>{hourColumns(true)}</div>
     </div>
   );
 
