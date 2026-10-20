@@ -8,6 +8,7 @@ import {
 import type { PluginComponentProps } from './hs-plugin';
 import { hostFrameStyle } from './host-style';
 import { colorIconComponents } from './color-icons';
+import { useFitFontSize } from './fit';
 
 // ── Data shapes the host injects when dataRequirements includes "weather" ──
 // (mirrors the host's src/lib/weather/types.ts)
@@ -142,9 +143,6 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   const view = (config.view as string) || 'combined';
   const outlineColor = (config.outlineColor as string) || '#000000';
-  // Scale the outline with the Text size slider (authored against 24px).
-  const scale = num(style.fontSize, BASE_FONT) / BASE_FONT;
-  const outlineWidth = Math.max(0, num(config.outlineWidth, 3)) * scale;
   const outlineIcons = config.outlineIcons !== false;
   const softShadow = config.softShadow !== false;
   const hourCount = Math.round(num(config.hourCount, 6));
@@ -153,15 +151,33 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   const showHighLow = config.showHighLow !== false;
   const showFeelsLike = config.showFeelsLike !== false;
   const showPrecip = config.showPrecip !== false;
+  const colorIcons = config.iconStyle !== 'line';
+  const showHumidity = config.showHumidity !== false;
+  const showWind = config.showWind !== false;
 
   const hourly = (Array.isArray(props.hourly) ? props.hourly : []) as HourlyWeather[];
   const forecast = (Array.isArray(props.forecast) ? props.forecast : []) as ForecastDay[];
+
+  // Shrink the text until everything fits the module's box, like the host's
+  // own weather views, so the module can be resized down freely. The key
+  // restarts the fit whenever what is drawn changes.
+  const desiredFont = Math.max(1, num(style.fontSize, BASE_FONT));
+  const { boxRef, fontSize } = useFitFontSize(desiredFont, [
+    view, hourCount, dayCount, hourly.length, forecast.length, hourly[0]?.time, forecast[0]?.date,
+    colorIcons, showDescription, showHighLow, showFeelsLike, showPrecip, showHumidity, showWind,
+    p.locationMissing, p.weatherError ? 1 : 0, style.fontFamily, style.padding,
+  ].join('|'));
+
+  // Scale the outline with the rendered text size (authored against 24px).
+  const scale = fontSize / BASE_FONT;
+  const outlineWidth = Math.max(0, num(config.outlineWidth, 3)) * scale;
 
   const iconFilter = outlineIcons ? iconOutline(outlineColor, outlineWidth, softShadow) : undefined;
 
   const root: CSSProperties = {
     ...hostFrameStyle(style, { baseFontSize: BASE_FONT }),
     ...textOutline(outlineColor, outlineWidth, softShadow),
+    fontSize,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -170,9 +186,6 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     lineHeight: 1.15,
   };
 
-  const colorIcons = config.iconStyle !== 'line';
-  const showHumidity = config.showHumidity !== false;
-  const showWind = config.showWind !== false;
   const windUnit = props.units === 'metric' ? 'km/h' : 'mph';
 
   const Icon = ({ id, size }: { id: string; size: string }) => {
@@ -211,17 +224,17 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   // ── Empty / error states ──
   if (p.locationMissing) {
-    return <div style={root}><span style={{ fontSize: '0.9em' }}>Set your location in Settings &gt; Location &amp; language</span></div>;
+    return <div ref={boxRef} style={root}><span style={{ fontSize: '0.9em' }}>Set your location in Settings &gt; Location &amp; language</span></div>;
   }
   if (hourly.length === 0 && forecast.length === 0) {
-    return <div style={root}><span style={{ fontSize: '0.9em' }}>{p.weatherError ? 'Weather unavailable' : 'Loading weather…'}</span></div>;
+    return <div ref={boxRef} style={root}><span style={{ fontSize: '0.9em' }}>{p.weatherError ? 'Weather unavailable' : 'Loading weather…'}</span></div>;
   }
 
   const current = hourly[0];
   const today = forecast[0];
 
   if (view === 'combined') {
-    return <div style={{ ...root, alignItems: 'stretch', justifyContent: 'flex-start', gap: 0 }}>{combined()}</div>;
+    return <div ref={boxRef} style={{ ...root, alignItems: 'stretch', justifyContent: 'flex-start', gap: 0 }}>{combined()}</div>;
   }
 
   const currentBlock = current ? (
@@ -251,8 +264,8 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   const hourlyBlock = columns(
     hourly.slice(0, hourCount).map((h) => (
-      <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em', minWidth: 0 }}>
-        <span style={{ fontSize: '0.8em' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
+      <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
+        <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
         <Icon id={h.icon} size="1.6em" />
         <span style={{ fontWeight: 600 }}>{deg(h.temp)}</span>
         <Precip value={h.precipProbability} />
@@ -262,7 +275,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   const dailyBlock = columns(
     forecast.slice(0, dayCount).map((d, i) => (
-      <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em', minWidth: 0 }}>
+      <div key={d.date} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
         <span style={{ fontSize: '0.8em' }}>{dayLabel(d.date, i)}</span>
         <Icon id={d.icon} size="1.6em" />
         <span style={{ fontWeight: 600 }}>{deg(d.high)}</span>
@@ -273,7 +286,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
   );
 
   return (
-    <div style={root}>
+    <div ref={boxRef} style={root}>
       {view === 'current' && currentBlock}
       {view === 'hourly' && hourlyBlock}
       {view === 'daily' && forecast.length > 0 && dailyBlock}
@@ -291,7 +304,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     return (
       <>
         {current && (
-          <div style={{ flex: '0 0 25%', display: 'flex', alignItems: 'center', gap: '0.65em', minHeight: 0 }}>
+          <div data-fit style={{ flex: '0 0 25%', display: 'flex', alignItems: 'center', gap: '0.65em', minHeight: 0 }}>
             <Icon id={current.icon} size="2.5em" />
             <span style={{ fontSize: '3em', fontWeight: 300, lineHeight: 1 }}>{deg(current.temp)}</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1em', minWidth: 0 }}>
@@ -314,12 +327,12 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         )}
 
         {hours.length > 0 && (
-          <div style={{ flex: '0 0 25%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div data-fit style={{ flex: '0 0 25%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {rule}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-around' }}>
               {hours.map((h) => (
-                <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em', minWidth: 0 }}>
-                  <span style={{ fontSize: '0.65em', opacity: DIM }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
+                <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1em' }}>
+                  <span style={{ fontSize: '0.65em', opacity: DIM, whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
                   <Icon id={h.icon} size="1.4em" />
                   <span style={{ fontSize: '0.75em', fontWeight: 500 }}>{deg(h.temp)}</span>
                   <Stat icon={CloudRain} value={h.precipProbability} unit="%" show={showPrecip} />
@@ -330,7 +343,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         )}
 
         {days.length > 0 && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div data-fit style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             {rule}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', padding: '0.25em 0', minHeight: 0 }}>
               {days.map((d, i) => (
