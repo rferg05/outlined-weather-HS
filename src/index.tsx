@@ -61,6 +61,10 @@ const BASE_FONT = 24;
 /** Rain drops on the rain-chance icon when rain is possible. A light blue, so
  *  it reads on dark backgrounds; the icon outline carries it on light ones. */
 const RAIN_BLUE = '#4fb0ff';
+/** The "H" and "L" letters of today's high / low. Mid-bright tints, so they
+ *  hold on dark backgrounds, with the text outline carrying them on light ones. */
+const HIGH_ORANGE = '#fb923c';
+const LOW_BLUE = RAIN_BLUE;
 /** Hourly +1 wraps its hour columns onto another row past this many. */
 const HOURS_PER_ROW = 5;
 
@@ -276,6 +280,19 @@ export default function OutlinedWeather(props: PluginComponentProps) {
       </span>
     ) : null;
 
+  /** "H:64° L:43°" with an orange H and a blue L. The letters stay at full
+   *  strength and a little heavier so the colour reads; only the numbers take
+   *  `numberOpacity` (dimming the letters too washed the colours out). */
+  const hiLo = (high: number, low: number, numberOpacity = 1, colon = true) => (
+    <>
+      <span style={{ color: HIGH_ORANGE, fontWeight: 600 }}>H</span>
+      <span style={{ opacity: numberOpacity }}>{colon ? ':' : ' '}{deg(high)}</span>
+      {colon ? ' ' : ' · '}
+      <span style={{ color: LOW_BLUE, fontWeight: 600 }}>L</span>
+      <span style={{ opacity: numberOpacity }}>{colon ? ':' : ' '}{deg(low)}</span>
+    </>
+  );
+
   // ── Empty / error states ──
   if (p.locationMissing) {
     return <div ref={boxRef} style={root}><span style={{ fontSize: '0.9em' }}>Set your location in Settings &gt; Location &amp; language</span></div>;
@@ -303,7 +320,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         <div style={{ fontSize: '1em', textTransform: 'capitalize' }}>{current.description}</div>
       )}
       <div style={{ display: 'flex', gap: '0.8em', fontSize: '0.85em', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {showHighLow && today && <span>H {deg(today.high)}{' · '}L {deg(today.low)}</span>}
+        {showHighLow && today && <span>{hiLo(today.high, today.low, 1, false)}</span>}
         {showFeelsLike && current.feelsLike != null && <span>Feels {deg(current.feelsLike)}</span>}
         <Precip value={current.precipProbability ?? today?.precipProbability} />
       </div>
@@ -337,7 +354,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
         <Icon id={current.icon} size="2.5em" />
       </div>
       {showHighLow && today && (
-        <span style={{ fontSize: large ? '1em' : '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>H:{deg(today.high)} L:{deg(today.low)}</span>
+        <span style={{ fontSize: large ? '1em' : '0.85em', whiteSpace: 'nowrap' }}>{hiLo(today.high, today.low, SECONDARY)}</span>
       )}
       {showFeelsLike && current.feelsLike != null && (
         <span style={{ fontSize: '0.85em', opacity: SECONDARY, whiteSpace: 'nowrap' }}>Feels like {deg(current.feelsLike)}</span>
@@ -390,7 +407,10 @@ export default function OutlinedWeather(props: PluginComponentProps) {
           columnGap: '0.4em', rowGap: '0.6em',
         }}
       >
-        {cells}
+        {cells.flatMap((cell, i) => (i > 0 && i % HOURS_PER_ROW === 0
+          // A rule across every column between one row of hours and the next.
+          ? [<div key={`rule-${i}`} style={{ gridColumn: '1 / -1', justifySelf: 'stretch', height: 1, background: 'currentColor', opacity: 0.2 }} />, cell]
+          : [cell]))}
       </div>
     );
   };
@@ -504,7 +524,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
             <span style={{ fontSize: '3em', fontWeight: 300, lineHeight: 1 }}>{deg(current.temp)}</span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1em', minWidth: 0 }}>
               {showHighLow && today && (
-                <span style={{ fontSize: '0.8em', opacity: SECONDARY }}>H:{deg(today.high)} L:{deg(today.low)}</span>
+                <span style={{ fontSize: '0.8em', whiteSpace: 'nowrap' }}>{hiLo(today.high, today.low, SECONDARY)}</span>
               )}
               {showFeelsLike && current.feelsLike != null && (
                 <span style={{ fontSize: '0.75em', opacity: DIM }}>Feels like {deg(current.feelsLike)}</span>
