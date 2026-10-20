@@ -58,6 +58,12 @@ const LINE_ICONS: Record<string, IconComponent> = {
 
 const BASE_FONT = 24;
 
+/** Rain drops on the rain-chance icon when rain is possible. A light blue, so
+ *  it reads on dark backgrounds; the icon outline carries it on light ones. */
+const RAIN_BLUE = '#4fb0ff';
+/** Hourly +1 wraps its hour columns onto another row past this many. */
+const HOURS_PER_ROW = 5;
+
 // The host's TEXT_OPACITY steps, so secondary text fades the same way.
 const SECONDARY = 0.6;
 const DIM = 0.45;
@@ -187,7 +193,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
 
   // Scale the outline with the rendered text size (authored against 24px).
   const scale = fontSize / BASE_FONT;
-  const outlineWidth = Math.max(0, num(config.outlineWidth, 3)) * scale;
+  const outlineWidth = Math.max(0, num(config.outlineWidth, 0.5)) * scale;
 
   const iconFilter = outlineIcons ? iconOutline(outlineColor, outlineWidth, softShadow) : undefined;
 
@@ -219,13 +225,44 @@ export default function OutlinedWeather(props: PluginComponentProps) {
     );
   };
 
+  /** Lucide's CloudRain, drawn by hand so the drops can turn blue (and a
+   *  touch heavier, to hold the colour at small sizes) when rain is possible. */
+  const RainIcon = ({ wet, size }: { wet: boolean; size: string }) => (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+      style={{ filter: iconFilter, overflow: 'visible', flexShrink: 0 }} aria-hidden="true"
+    >
+      <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+      <g stroke={wet ? RAIN_BLUE : 'currentColor'} strokeWidth={wet ? 2.6 : 2}>
+        <path d="M16 14v6" />
+        <path d="M8 14v6" />
+        <path d="M12 16v6" />
+      </g>
+    </svg>
+  );
+
   const Precip = ({ value }: { value?: number }) =>
-    showPrecip && typeof value === 'number' && value > 0 ? (
+    showPrecip && typeof value === 'number' && Math.round(value) > 0 ? (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15em', fontSize: '0.8em' }}>
-        <Droplets size="0.9em" strokeWidth={2} style={{ filter: iconFilter, overflow: 'visible' }} aria-hidden="true" />
+        <RainIcon wet size="1.1em" />
         {Math.round(value)}%
       </span>
     ) : null;
+
+  /** The dimmed rain-chance reading. With any chance of rain the icon stays at
+   *  full strength so the blue isn't washed out: dimming it let the black
+   *  outline show through and turned the whole icon a muddy grey. */
+  const RainStat = ({ value, show, size = '0.7em' }: { value?: number; show: boolean; size?: string }) => {
+    if (!show || typeof value !== 'number' || !Number.isFinite(value)) return null;
+    const wet = Math.round(value) > 0;
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15em', fontSize: size, whiteSpace: 'nowrap' }}>
+        <span style={{ display: 'inline-flex', opacity: wet ? 1 : DIM }}><RainIcon wet={wet} size="1em" /></span>
+        <span style={{ opacity: DIM }}>{Math.round(value)}%</span>
+      </span>
+    );
+  };
 
   /** A small dimmed reading with a line icon, like the host's WeatherStat.
    *  Unlike Precip it shows 0 too, as the host's combined view does. */
@@ -323,24 +360,40 @@ export default function OutlinedWeather(props: PluginComponentProps) {
           </div>
         )}
       </div>
-      <Stat icon={CloudRain} value={today.precipProbability} unit="%" show={showPrecip} size="0.85em" />
+      <RainStat value={today.precipProbability} show={showPrecip} size="0.85em" />
       <Stat icon={Droplets} value={today.humidity} unit="%" show={showHumidity} size="0.85em" />
       <Stat icon={Wind} value={today.windSpeed} unit={` ${windUnit}`} show={showWind} size="0.85em" />
     </div>
   ) : null;
 
   const hourlyFrom = showTodayPanel && hourlyPanel ? 1 : 0;
-  /** `large` is Hourly +1, where the hours get the room the Tmrw row gave up. */
-  const hourColumns = (large: boolean) => columns(
-    hourly.slice(hourlyFrom, hourlyFrom + hourCount).map((h) => (
+  /** `large` is Hourly +1, where the hours get the room the Tmrw row gave up,
+   *  and wrap onto further rows past HOURS_PER_ROW (a grid, so the rows'
+   *  columns line up). */
+  const hourColumns = (large: boolean) => {
+    const hours = hourly.slice(hourlyFrom, hourlyFrom + hourCount);
+    const cells = hours.map((h) => (
       <div key={h.time} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25em' }}>
         <span style={{ fontSize: large ? '1em' : '0.8em', whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
         <Icon id={h.icon} size={large ? '2.2em' : '1.6em'} />
         <span style={{ fontWeight: 600, fontSize: large ? '1.3em' : undefined }}>{deg(h.temp)}</span>
         <Precip value={h.precipProbability} />
       </div>
-    )),
-  );
+    ));
+    if (!large) return columns(cells);
+    return (
+      <div
+        data-fit="x"
+        style={{
+          display: 'grid', width: '100%', minWidth: 0, justifyItems: 'center', alignItems: 'start',
+          gridTemplateColumns: `repeat(${Math.max(1, Math.min(hours.length, HOURS_PER_ROW))}, minmax(min-content, 1fr))`,
+          columnGap: '0.4em', rowGap: '0.6em',
+        }}
+      >
+        {cells}
+      </div>
+    );
+  };
   const hourlyBlock = hourColumns(false);
 
   const dailyFrom = showTodayPanel && dailyPanel ? 1 : 0;
@@ -374,8 +427,8 @@ export default function OutlinedWeather(props: PluginComponentProps) {
           </>
         )}
       </span>
-      <Stat
-        icon={CloudRain} value={tomorrow.precipProbability} unit="%" size="0.85em"
+      <RainStat
+        value={tomorrow.precipProbability} size="0.85em"
         show={showPrecip && !(hideZeroRain && Math.round(tomorrow.precipProbability ?? 0) === 0)}
       />
       <Stat icon={Droplets} value={tomorrow.humidity} unit="%" show={showHumidity} size="0.85em" />
@@ -460,7 +513,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
                 <span style={{ fontSize: '0.75em', opacity: DIM, textTransform: 'capitalize' }}>{current.description}</span>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5em', flexWrap: 'wrap' }}>
-                <Stat icon={CloudRain} value={current.precipProbability} unit="%" show={showPrecip} size="0.75em" />
+                <RainStat value={current.precipProbability} show={showPrecip} size="0.75em" />
                 <Stat icon={Droplets} value={current.humidity} unit="%" show={showHumidity} size="0.75em" />
                 <Stat icon={Wind} value={current.windSpeed} show={showWind} size="0.75em" />
               </div>
@@ -477,7 +530,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
                   <span style={{ fontSize: '0.65em', opacity: DIM, whiteSpace: 'nowrap' }}>{hourLabel(h.time, props.timezone, p.timeFormat)}</span>
                   <Icon id={h.icon} size="1.4em" />
                   <span style={{ fontSize: '0.75em', fontWeight: 500 }}>{deg(h.temp)}</span>
-                  <Stat icon={CloudRain} value={h.precipProbability} unit="%" show={showPrecip} />
+                  <RainStat value={h.precipProbability} show={showPrecip} />
                 </div>
               ))}
             </div>
@@ -492,7 +545,7 @@ export default function OutlinedWeather(props: PluginComponentProps) {
                 <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: '0.75em', fontSize: '0.85em' }}>
                   <span style={{ width: '3.5em', textAlign: 'right', fontSize: '0.85em', opacity: SECONDARY, flexShrink: 0 }}>{dayLabel(d.date, i, true)}</span>
                   <Icon id={d.icon} size="1.4em" />
-                  <Stat icon={CloudRain} value={d.precipProbability} unit="%" show={showPrecip} />
+                  <RainStat value={d.precipProbability} show={showPrecip} />
                   {showHighLow && (
                     <div style={{ display: 'flex', gap: '0.25em', marginLeft: 'auto' }}>
                       <span style={{ fontWeight: 500 }}>{deg(d.high)}</span>
