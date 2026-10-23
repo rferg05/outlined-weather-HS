@@ -1,7 +1,7 @@
 {
   "id": "outlined-weather",
   "name": "Outlined Weather",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "description": "Weather with an outline around the text and icons, so it stays readable over photos and busy backgrounds.",
   "author": "Ryan",
   "license": "MIT",
@@ -12,24 +12,35 @@
   "defaultConfig": {
     "view": "combined",
     "iconStyle": "color",
-    "outlineColor": "#000000",
-    "outlineWidth": 0.5,
-    "outlineIcons": true,
-    "softShadow": true,
-    "hourCount": 9,
-    "dayCount": 5,
+    "autoSize": true,
+    "hourCount": 12,
+    "hoursPerRow": 0,
+    "dayCount": 7,
+    "upcomingDays": 3,
     "showTodayPanel": true,
     "showDescription": true,
     "showHighLow": true,
     "showFeelsLike": true,
     "showPrecip": true,
-    "hideZeroRain": false,
+    "rainThreshold": 10,
     "showHumidity": true,
-    "showWind": true
+    "showWind": true,
+    "showUV": true,
+    "hourWind": false,
+    "hourUV": false,
+    "showAlerts": true,
+    "showNowcast": true,
+    "shadeNight": true,
+    "tempColors": true,
+    "nightDim": 0,
+    "outlineColor": "#000000",
+    "outlineWidth": 0.5,
+    "outlineIcons": true,
+    "softShadow": true
   },
   "defaultSize": {
-    "w": 520,
-    "h": 420
+    "w": 1200,
+    "h": 640
   },
   "defaultStyle": {
     "fontSize": 24,
@@ -54,7 +65,7 @@
           "Hourly",
           "Hourly +1",
           "Daily",
-          "Current + hourly + daily"
+          "Dashboard (today, hours graph, week)"
         ],
         "ui:widget": "select",
         "ui:group": "Layout"
@@ -73,21 +84,47 @@
         "ui:widget": "select",
         "ui:group": "Layout"
       },
+      "autoSize": {
+        "type": "boolean",
+        "title": "Grow text to fill the module",
+        "description": "Draws everything as large as the module allows, for reading from across the room. Off: start from the Text size setting.",
+        "ui:widget": "toggle",
+        "ui:group": "Layout"
+      },
       "hourCount": {
         "type": "number",
         "title": "Hours to show",
         "minimum": 3,
-        "maximum": 12,
+        "maximum": 24,
         "ui:widget": "slider",
         "ui:step": 1,
-        "ui:group": "Layout",
-        "description": "Used by the Hourly, Hourly +1 and Current + hourly + daily views."
+        "ui:group": "Layout"
+      },
+      "hoursPerRow": {
+        "type": "number",
+        "title": "Hours per row",
+        "description": "Hourly and Hourly +1. 0 picks for the module’s shape, wrapping onto more rows when that draws the hours larger.",
+        "minimum": 0,
+        "maximum": 24,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Layout"
       },
       "dayCount": {
         "type": "number",
         "title": "Days to show",
+        "description": "Daily and Dashboard views.",
         "minimum": 3,
-        "maximum": 7,
+        "maximum": 10,
+        "ui:widget": "slider",
+        "ui:step": 1,
+        "ui:group": "Layout"
+      },
+      "upcomingDays": {
+        "type": "number",
+        "title": "Days under today (Hourly +1)",
+        "minimum": 0,
+        "maximum": 6,
         "ui:widget": "slider",
         "ui:step": 1,
         "ui:group": "Layout"
@@ -95,7 +132,7 @@
       "showTodayPanel": {
         "type": "boolean",
         "title": "Show today panel",
-        "description": "Hourly, Hourly +1 and Daily views: current conditions (Hourly) or today's forecast (Daily) on the left.",
+        "description": "Hourly, Hourly +1 and Daily views: today on the left.",
         "ui:widget": "toggle",
         "ui:group": "Layout"
       },
@@ -103,44 +140,105 @@
         "type": "boolean",
         "title": "Show condition text",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
       },
       "showHighLow": {
         "type": "boolean",
-        "title": "Show today's high / low",
+        "title": "Show high / low",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
       },
       "showFeelsLike": {
         "type": "boolean",
         "title": "Show feels like",
+        "description": "Only when it differs from the temperature by 3° or more.",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
       },
       "showPrecip": {
         "type": "boolean",
         "title": "Show chance of rain",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
       },
-      "hideZeroRain": {
-        "type": "boolean",
-        "title": "Hide rain when 0%",
-        "description": "Hourly +1: leave the chance of rain off tomorrow's forecast when it is 0%.",
-        "ui:widget": "toggle",
-        "ui:group": "Layout"
+      "rainThreshold": {
+        "type": "number",
+        "title": "Hide rain chances below (%)",
+        "description": "0 shows every value, 0% included.",
+        "minimum": 0,
+        "maximum": 50,
+        "ui:widget": "slider",
+        "ui:step": 5,
+        "ui:group": "Details"
       },
       "showHumidity": {
         "type": "boolean",
         "title": "Show humidity",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
       },
       "showWind": {
         "type": "boolean",
         "title": "Show wind",
+        "description": "With an arrow for where it blows, and gusts when strong.",
         "ui:widget": "toggle",
-        "ui:group": "Layout"
+        "ui:group": "Details"
+      },
+      "showUV": {
+        "type": "boolean",
+        "title": "Show UV index",
+        "description": "Daytime only, colour-coded.",
+        "ui:widget": "toggle",
+        "ui:group": "Details"
+      },
+      "hourWind": {
+        "type": "boolean",
+        "title": "Wind under each hour",
+        "ui:widget": "toggle",
+        "ui:group": "Details"
+      },
+      "hourUV": {
+        "type": "boolean",
+        "title": "UV under each hour",
+        "ui:widget": "toggle",
+        "ui:group": "Details"
+      },
+      "showAlerts": {
+        "type": "boolean",
+        "title": "Show weather alerts",
+        "description": "A coloured banner across the top while a watch or warning is active.",
+        "ui:widget": "toggle",
+        "ui:group": "Extras"
+      },
+      "showNowcast": {
+        "type": "boolean",
+        "title": "Show rain in the next hour",
+        "description": "“Rain starting in 12 min”, when the weather provider sends minute-by-minute data.",
+        "ui:widget": "toggle",
+        "ui:group": "Extras"
+      },
+      "shadeNight": {
+        "type": "boolean",
+        "title": "Shade night hours, mark sunrise and sunset",
+        "ui:widget": "toggle",
+        "ui:group": "Extras"
+      },
+      "tempColors": {
+        "type": "boolean",
+        "title": "Colour temperatures",
+        "description": "From blue for cold to red for hot.",
+        "ui:widget": "toggle",
+        "ui:group": "Extras"
+      },
+      "nightDim": {
+        "type": "number",
+        "title": "Dim at night (%)",
+        "description": "Darkens the module between sunset and sunrise.",
+        "minimum": 0,
+        "maximum": 80,
+        "ui:widget": "slider",
+        "ui:step": 5,
+        "ui:group": "Extras"
       },
       "outlineColor": {
         "type": "string",

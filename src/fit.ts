@@ -6,8 +6,9 @@ const MIN_FONT_PX = 6;
 const SAFETY = 0.995;
 /** Stop once the largest known-fitting and smallest known-too-big scales are this close. */
 const TOLERANCE = 0.02;
-/** Hard cap on measure/correct rounds per content change. */
-const MAX_STEPS = 8;
+/** Hard cap on measure/correct rounds per content change. Generous, since a
+ *  grow-to-fill start can sit several times above the size that fits. */
+const MAX_STEPS = 12;
 
 /** How far the box, or any `[data-fit]` region inside it, overflows: 1 when
  *  nothing does, else the worst client/scroll ratio. The regions matter in the
@@ -37,17 +38,25 @@ function overflowRatio(box: HTMLElement): number {
  * staying shrunk after the content gets shorter. A change in the box's own
  * size restarts it as well.
  *
- * Never scales up past `desired`, so a module that already fits renders
- * exactly as before.
+ * Never scales up past `desired`. To grow text to fill the box, pass
+ * `desired` as a function of the box's size that returns a generous ceiling;
+ * the fit then settles on the largest size that fits under it.
  */
-export function useFitFontSize(desired: number, resetKey: string): {
+export function useFitFontSize(
+  desiredFor: number | ((boxW: number, boxH: number) => number),
+  resetKey: string,
+): {
   boxRef: React.RefObject<HTMLDivElement | null>;
   fontSize: number;
+  boxW: number;
+  boxH: number;
 } {
   const boxRef = useRef<HTMLDivElement>(null);
+  const [boxSize, setBoxSize] = useState({ w: 0, h: 0 });
+  const desired = Math.max(1, typeof desiredFor === 'function' ? desiredFor(boxSize.w, boxSize.h) : desiredFor);
   // `lo` is the largest scale measured to fit, `hi` the smallest measured not to.
   const [fit, setFit] = useState({ key: '', box: '', scale: 1, lo: 0, hi: Infinity, steps: 0 });
-  const key = `${desired}|${resetKey}`;
+  const key = `${desired.toFixed(2)}|${resetKey}`;
   const matches = fit.key === key;
   const scale = matches ? fit.scale : 1;
   const lo = matches ? fit.lo : 0;
@@ -65,6 +74,11 @@ export function useFitFontSize(desired: number, resetKey: string): {
       if (cancelled) return;
       const boxKey = `${box.clientWidth}x${box.clientHeight}`;
       if (!box.clientWidth || !box.clientHeight) return;
+      // The size feeds `desired`: record it and let that render restart the fit.
+      if (box.clientWidth !== boxSize.w || box.clientHeight !== boxSize.h) {
+        setBoxSize({ w: box.clientWidth, h: box.clientHeight });
+        return;
+      }
 
       // Text laid out in a fallback face moves once the real font lands.
       if (typeof document !== 'undefined' && document.fonts?.status === 'loading') {
@@ -114,5 +128,5 @@ export function useFitFontSize(desired: number, resetKey: string): {
     return () => { cancelled = true; ro.disconnect(); };
   });
 
-  return { boxRef, fontSize: desired * scale };
+  return { boxRef, fontSize: desired * scale, boxW: boxSize.w, boxH: boxSize.h };
 }
